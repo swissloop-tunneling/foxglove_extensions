@@ -11,12 +11,14 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+// Modified by Swissloop Tunneling (Project Marmot): blackboard passed to the sidebar.
 import { ReactElement, useMemo } from "react";
 
 import { Graph } from "./components/Graph";
 import { GraphContextProvider } from "./components/GraphContextProvider";
-import { parseBehaviorTreeXML } from "./parse";
 import { EMPTY_NODE_STATUS_SNAPSHOT } from "./liveState";
+import { parseBehaviorTreeXML } from "./parse";
 import { NodeStatusSnapshot, TBehaviorTree } from "./types";
 
 import { RightSidebar } from "@/components/RightSidebar";
@@ -24,11 +26,13 @@ import { RightSidebar } from "@/components/RightSidebar";
 interface BehaviorTreeProps {
   xml?: string;
   nodeStatuses?: NodeStatusSnapshot;
+  blackboardJson?: string;
 }
 
 export function BehaviorTree({
   xml,
   nodeStatuses = EMPTY_NODE_STATUS_SNAPSHOT,
+  blackboardJson,
 }: BehaviorTreeProps): ReactElement {
   const behaviorTree: TBehaviorTree | null = useMemo(() => {
     if (xml) {
@@ -49,7 +53,7 @@ export function BehaviorTree({
           <Graph behaviorTree={behaviorTree} nodeStatuses={nodeStatuses} />
         </div>
 
-        <RightSidebar behaviorTree={behaviorTree} xml={xml} />
+        <RightSidebar behaviorTree={behaviorTree} xml={xml} blackboardJson={blackboardJson} />
       </div>
     </GraphContextProvider>
   );

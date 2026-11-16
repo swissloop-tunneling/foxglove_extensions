@@ -11,6 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+// Modified by Swissloop Tunneling (Project Marmot): "Blackboard" tab.
 import {
   ChevronDown,
   ChevronRightIcon,
@@ -20,6 +22,7 @@ import {
 } from "lucide-react";
 import React, { useState } from "react";
 
+import { BlackboardView } from "@/components/BlackboardView";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -148,9 +151,11 @@ function ModelCategory({ title, items }: ModelCategoryProps) {
 export function RightSidebar({
   behaviorTree,
   xml,
+  blackboardJson,
 }: {
   behaviorTree: TBehaviorTree | null;
   xml?: string;
+  blackboardJson?: string;
 }) {
   const [isOpen, setIsOpen] = useState(true);
   const [width, setWidth] = useState(512); // Default width in pixels
@@ -291,9 +296,12 @@ export function RightSidebar({
 
           {/* Content */}
           <div className="flex-1 overflow-hidden">
-            <Tabs defaultValue="xml" className="h-full flex flex-col">
+            <Tabs defaultValue="blackboard" className="h-full flex flex-col">
               <div className="flex items-center m-2 mb-0">
-                <TabsList className="grid flex-1 grid-cols-2">
+                <TabsList className="grid flex-1 grid-cols-3">
+                  <TabsTrigger value="blackboard" className="text-xs">
+                    Blackboard
+                  </TabsTrigger>
                   <TabsTrigger value="xml" className="text-xs">
                     XML
                   </TabsTrigger>
@@ -311,6 +319,12 @@ export function RightSidebar({
                   <Download className="h-3 w-3" />
                 </Button>
               </div>
+
+              <TabsContent value="blackboard" className="flex-1 m-0 p-0 overflow-hidden">
+                <div className="h-full w-full overflow-auto">
+                  <BlackboardView json={blackboardJson} />
+                </div>
+              </TabsContent>
 
               <TabsContent value="xml" className="flex-1 m-0 p-0 overflow-hidden">
                 <div className="h-full overflow-y-auto overflow-x-auto">

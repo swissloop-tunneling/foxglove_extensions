@@ -11,11 +11,24 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+// Modified by Swissloop Tunneling (Project Marmot): operator controls (goal, start, stop and the
+// state of the mission node) and the blackboard of the running tree. All additions are marked
+// with "Marmot".
 import { PanelExtensionContext, SettingsTreeAction, Topic } from "@foxglove/extension";
-import { ReactElement, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  ReactElement,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createRoot } from "react-dom/client";
 
 import { BehaviorTree } from "./BehaviorTree";
+import { ControlBar, Goal } from "./components/ControlBar";
 import {
   applyBehaviorTreeLogs,
   EMPTY_NODE_STATUS_SNAPSHOT,
@@ -27,16 +40,72 @@ import { BehaviorTreeLog, NodeStatusSnapshot } from "./types";
 type PanelState = {
   behaviorTreeXmlTopic?: string;
   behaviorTreeLogsTopic?: string;
+  // Marmot: operator controls and blackboard ("" switches one off)
+  goalTopic?: string;
+  startService?: string;
+  stopService?: string;
+  statusTopic?: string;
+  stepTopic?: string;
+  blackboardTopic?: string;
 };
+
+// Marmot: defaults for Project Marmot (bt_runner_node and tbm_mission)
+const MARMOT_DEFAULTS = {
+  behaviorTreeXmlTopic: "/behavior_tree_xml",
+  behaviorTreeLogsTopic: "/behavior_tree_log",
+  goalTopic: "/tbm/goal",
+  startService: "/tbm/start",
+  stopService: "/tbm/stop",
+  statusTopic: "/tbm/status",
+  stepTopic: "/tbm/bt_step",
+  blackboardTopic: "/behavior_tree_blackboard",
+} satisfies Required<PanelState>;
+const GOAL_SCHEMA = "geometry_msgs/msg/Point";
+
+/** Text of a std_msgs/String message (or a plain string) */
+function stringData(message: unknown): string | undefined {
+  if (typeof message === "string") {
+    return message;
+  }
+  if (message != null && typeof message === "object" && "data" in message) {
+    const data = (message as { data?: unknown }).data;
+    return typeof data === "string" ? data : undefined;
+  }
+  return undefined;
+}
+
+/** Latest String data of a topic in the current frame */
+function latestString(
+  frame: readonly { topic: string; message: unknown }[] | undefined,
+  topic: string,
+): string | undefined {
+  if (!frame || !topic) {
+    return undefined;
+  }
+  for (let i = frame.length - 1; i >= 0; i--) {
+    const event = frame[i];
+    if (event?.topic === topic) {
+      return stringData(event.message);
+    }
+  }
+  return undefined;
+}
 
 const BEHAVIOR_TREE_XML_TOPIC_SCHEMA = "std_msgs/msg/String";
 const BEHAVIOR_TREE_LOGS_TOPIC_SCHEMA = "nav2_msgs/msg/BehaviorTreeLog";
 
 function BehaviorTreePanel({ context }: { context: PanelExtensionContext }): ReactElement {
   const [panelState, setPanelState] = useState<PanelState>(() => {
-    return (context.initialState as PanelState | undefined) ?? {};
+    // Marmot: unset entries take the Project Marmot defaults
+    return { ...MARMOT_DEFAULTS, ...((context.initialState as PanelState | undefined) ?? {}) };
   });
+  const config = { ...MARMOT_DEFAULTS, ...panelState };
 
+  // Marmot: state of the mission node, blackboard and the answer of the last button
+  const [missionStatus, setMissionStatus] = useState<string | undefined>();
+  const [missionStep, setMissionStep] = useState<string | undefined>();
+  const [blackboardJson, setBlackboardJson] = useState<string | undefined>();
+  const [feedback, setFeedback] = useState<string | undefined>();
 
   // const [behaviorTreeXmlTopic, setBehaviorTreeXmlTopic] = useState<string | undefined>(
   // panelState.behaviorTreeXmlTopic,
@@ -45,9 +114,7 @@ function BehaviorTreePanel({ context }: { context: PanelExtensionContext }): Rea
   // panelState.behaviorTreeLogsTopic,
   // );
   const [behaviorTreeXml, setBehaviorTreeXml] = useState<string | undefined>();
-  const [nodeStatuses, setNodeStatuses] = useState<NodeStatusSnapshot>(
-    EMPTY_NODE_STATUS_SNAPSHOT,
-  );
+  const [nodeStatuses, setNodeStatuses] = useState<NodeStatusSnapshot>(EMPTY_NODE_STATUS_SNAPSHOT);
   const behaviorTreeXmlRef = useRef<string | undefined>(undefined);
 
   const [renderDone, setRenderDone] = useState<(() => void) | undefined>();
@@ -146,6 +213,20 @@ function BehaviorTreePanel({ context }: { context: PanelExtensionContext }): Rea
         }
       }
 
+      // Marmot: mission state and blackboard (std_msgs/String)
+      const status = latestString(renderState.currentFrame, config.statusTopic);
+      if (status != undefined) {
+        setMissionStatus(status);
+      }
+      const step = latestString(renderState.currentFrame, config.stepTopic);
+      if (step != undefined) {
+        setMissionStep(step);
+      }
+      const blackboard = latestString(renderState.currentFrame, config.blackboardTopic);
+      if (blackboard != undefined) {
+        setBlackboardJson(blackboard);
+      }
+
       const logsToApply: BehaviorTreeLog[] = [];
       if (panelState.behaviorTreeLogsTopic && renderState.currentFrame) {
         const messages = renderState.currentFrame.filter(
@@ -169,7 +250,7 @@ function BehaviorTreePanel({ context }: { context: PanelExtensionContext }): Rea
         );
       }
     };
-  }, [context, panelState]);
+  }, [context, panelState, config.statusTopic, config.stepTopic, config.blackboardTopic]);
 
   // Handle topic subscriptions in a separate effect that runs when topics change
   useEffect(() => {
@@ -183,18 +264,75 @@ function BehaviorTreePanel({ context }: { context: PanelExtensionContext }): Rea
       subscriptions.push({ topic: panelState.behaviorTreeLogsTopic });
     }
 
+    // Marmot
+    for (const topic of [config.statusTopic, config.stepTopic, config.blackboardTopic]) {
+      if (topic) {
+        subscriptions.push({ topic });
+      }
+    }
+
     if (subscriptions.length > 0) {
       context.subscribe(subscriptions);
     } else {
       // Subscribe to empty array to clear previous subscriptions
       context.subscribe([]);
     }
-  }, [context, panelState.behaviorTreeXmlTopic, panelState.behaviorTreeLogsTopic]);
+  }, [
+    context,
+    panelState.behaviorTreeXmlTopic,
+    panelState.behaviorTreeLogsTopic,
+    config.statusTopic,
+    config.stepTopic,
+    config.blackboardTopic,
+  ]);
+
+  // Marmot: advertise the goal topic while the panel is open, so the first goal is not lost
+  useEffect(() => {
+    const topic = config.goalTopic;
+    if (!topic || !context.advertise) {
+      return undefined;
+    }
+    context.advertise(topic, GOAL_SCHEMA);
+    return () => {
+      context.unadvertise?.(topic);
+    };
+  }, [context, config.goalTopic]);
+
+  const setGoal = useCallback(
+    (goal: Goal) => {
+      try {
+        context.publish?.(config.goalTopic, goal);
+        setFeedback(`goal sent: forward ${goal.x}, left ${goal.y}, up ${goal.z} mm`);
+      } catch (error) {
+        setFeedback(`cannot send the goal: ${String(error)}`);
+      }
+    },
+    [context, config.goalTopic],
+  );
+
+  const callTrigger = useCallback(
+    (service: string) => {
+      if (!context.callService || !service) {
+        setFeedback("the connection does not support service calls");
+        return;
+      }
+      context
+        .callService(service, {})
+        .then((response) => {
+          const { success, message } = (response ?? {}) as { success?: boolean; message?: string };
+          const result = success === false ? "refused" : "ok";
+          setFeedback(`${service}: ${result}${message ? `, ${message}` : ""}`);
+        })
+        .catch((error: unknown) => {
+          setFeedback(`${service} failed: ${String(error)}`);
+        });
+    },
+    [context],
+  );
 
   // Setup panel settings
   useEffect(() => {
     const actionHandler = (action: SettingsTreeAction) => {
-
       const path = action.payload.path.join(".");
       if (action.action === "update" && path === "behaviorTreeTopics.behaviorTreeXmlTopic") {
         const newTopic = action.payload.value as string;
@@ -203,6 +341,12 @@ function BehaviorTreePanel({ context }: { context: PanelExtensionContext }): Rea
       if (action.action === "update" && path === "behaviorTreeTopics.behaviorTreeLogsTopic") {
         const newTopic = action.payload.value as string;
         setPanelState((prev) => ({ ...prev, behaviorTreeLogsTopic: newTopic }));
+      }
+      // Marmot
+      const [node, field] = action.payload.path;
+      if (action.action === "update" && node === "marmot" && field && field in MARMOT_DEFAULTS) {
+        const value = (action.payload.value as string | undefined) ?? "";
+        setPanelState((prev) => ({ ...prev, [field]: value }));
       }
     };
 
@@ -226,6 +370,34 @@ function BehaviorTreePanel({ context }: { context: PanelExtensionContext }): Rea
             },
           },
         },
+        // Marmot
+        marmot: {
+          label: "Operator Controls (Project Marmot)",
+          fields: {
+            goalTopic: { label: "Goal topic (Point)", input: "string", value: config.goalTopic },
+            startService: {
+              label: "Start service (Trigger)",
+              input: "string",
+              value: config.startService,
+            },
+            stopService: {
+              label: "Stop service (Trigger)",
+              input: "string",
+              value: config.stopService,
+            },
+            statusTopic: {
+              label: "Status topic (String)",
+              input: "string",
+              value: config.statusTopic,
+            },
+            stepTopic: { label: "Step topic (String)", input: "string", value: config.stepTopic },
+            blackboardTopic: {
+              label: "Blackboard topic (String, JSON)",
+              input: "string",
+              value: config.blackboardTopic,
+            },
+          },
+        },
       },
     });
   }, [
@@ -234,6 +406,12 @@ function BehaviorTreePanel({ context }: { context: PanelExtensionContext }): Rea
     panelState.behaviorTreeLogsTopic,
     validBehaviorTreeXmlTopics,
     validBehaviorTreeLogsTopics,
+    config.goalTopic,
+    config.startService,
+    config.stopService,
+    config.statusTopic,
+    config.stepTopic,
+    config.blackboardTopic,
   ]);
 
   // Save panel state
@@ -248,8 +426,29 @@ function BehaviorTreePanel({ context }: { context: PanelExtensionContext }): Rea
 
   return (
     // There is a bug with Foxglove's `renderState.colorScheme` prop where it doesn't update properly.
-    <div className="h-full w-full dark">
-      <BehaviorTree xml={behaviorTreeXml} nodeStatuses={nodeStatuses} />
+    <div className="h-full w-full dark flex flex-col">
+      {/* Marmot: operator controls */}
+      <ControlBar
+        canPublish={context.publish != null && config.goalTopic !== ""}
+        canCallServices={context.callService != null}
+        status={missionStatus}
+        step={missionStep}
+        feedback={feedback}
+        onSetGoal={setGoal}
+        onStart={() => {
+          callTrigger(config.startService);
+        }}
+        onStop={() => {
+          callTrigger(config.stopService);
+        }}
+      />
+      <div className="flex-1 min-h-0">
+        <BehaviorTree
+          xml={behaviorTreeXml}
+          nodeStatuses={nodeStatuses}
+          blackboardJson={blackboardJson}
+        />
+      </div>
     </div>
   );
 }

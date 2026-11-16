@@ -1,3 +1,28 @@
+# Behavior Tree Panel (Project Marmot fork)
+
+Fork of the [Polymath Robotics behavior-tree panel](https://github.com/polymathrobotics/foxglove_extensions/tree/main/behavior-tree)
+(Apache-2.0) for Project Marmot. It shows up in Foxglove as **[Marmot] Behavior Tree** and adds:
+
+- **Operator controls** above the tree: goal (forward, left, up in mm) sent as `geometry_msgs/msg/Point`,
+  **Start** and **Stop** buttons calling `std_srvs/srv/Trigger` services, and the state of the mission node.
+- **Blackboard** tab in the sidebar: the values of the running tree, from a `std_msgs/msg/String` with
+  the JSON of `BT::ExportTreeToJSON`.
+
+Defaults (all changeable in the panel settings under "Operator Controls (Project Marmot)"):
+
+| Setting | Default | Published by |
+|---|---|---|
+| Behavior Tree XML / Logs | `/behavior_tree_xml`, `/behavior_tree_log` | `bt_runner_node` |
+| Blackboard | `/behavior_tree_blackboard` | `bt_runner_node` |
+| Goal topic | `/tbm/goal` | this panel, read by `tbm_mission` |
+| Start / Stop services | `/tbm/start`, `/tbm/stop` | `tbm_mission` |
+| Status / step topics | `/tbm/status`, `/tbm/bt_step` | `tbm_mission` |
+
+Build: `npm ci`, `npm run package`, then drag `swisslooptunneling.marmot-behavior-tree-0.3.0.foxe`
+into Foxglove. Changes to the original code are marked with "Marmot".
+
+---
+
 # Behavior Tree Panel
 
 ![Behavior Tree](./docs/behavior_tree_first_pass.gif)

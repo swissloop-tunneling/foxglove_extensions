@@ -17,7 +17,7 @@ import { initBehaviorTreePanel } from "./BehaviorTreePanel";
 
 export function activate(extensionContext: ExtensionContext): void {
   extensionContext.registerPanel({
-    name: "[Polymath] Behavior Tree",
+    name: "[Marmot] Behavior Tree",
     initPanel: initBehaviorTreePanel,
   });
 }
