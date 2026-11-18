@@ -47,6 +47,7 @@ type PanelState = {
   statusTopic?: string;
   stepTopic?: string;
   blackboardTopic?: string;
+  libraryTopic?: string;
 };
 
 // Marmot: defaults for Project Marmot (bt_runner_node and tbm_mission)
@@ -59,6 +60,7 @@ const MARMOT_DEFAULTS = {
   statusTopic: "/tbm/status",
   stepTopic: "/tbm/bt_step",
   blackboardTopic: "/behavior_tree_blackboard",
+  libraryTopic: "/behavior_tree_library",
 } satisfies Required<PanelState>;
 const GOAL_SCHEMA = "geometry_msgs/msg/Point";
 
@@ -105,6 +107,7 @@ function BehaviorTreePanel({ context }: { context: PanelExtensionContext }): Rea
   const [missionStatus, setMissionStatus] = useState<string | undefined>();
   const [missionStep, setMissionStep] = useState<string | undefined>();
   const [blackboardJson, setBlackboardJson] = useState<string | undefined>();
+  const [libraryJson, setLibraryJson] = useState<string | undefined>();
   const [feedback, setFeedback] = useState<string | undefined>();
 
   // const [behaviorTreeXmlTopic, setBehaviorTreeXmlTopic] = useState<string | undefined>(
@@ -226,6 +229,10 @@ function BehaviorTreePanel({ context }: { context: PanelExtensionContext }): Rea
       if (blackboard != undefined) {
         setBlackboardJson(blackboard);
       }
+      const library = latestString(renderState.currentFrame, config.libraryTopic);
+      if (library != undefined) {
+        setLibraryJson(library);
+      }
 
       const logsToApply: BehaviorTreeLog[] = [];
       if (panelState.behaviorTreeLogsTopic && renderState.currentFrame) {
@@ -250,7 +257,14 @@ function BehaviorTreePanel({ context }: { context: PanelExtensionContext }): Rea
         );
       }
     };
-  }, [context, panelState, config.statusTopic, config.stepTopic, config.blackboardTopic]);
+  }, [
+    context,
+    panelState,
+    config.statusTopic,
+    config.stepTopic,
+    config.blackboardTopic,
+    config.libraryTopic,
+  ]);
 
   // Handle topic subscriptions in a separate effect that runs when topics change
   useEffect(() => {
@@ -265,7 +279,12 @@ function BehaviorTreePanel({ context }: { context: PanelExtensionContext }): Rea
     }
 
     // Marmot
-    for (const topic of [config.statusTopic, config.stepTopic, config.blackboardTopic]) {
+    for (const topic of [
+      config.statusTopic,
+      config.stepTopic,
+      config.blackboardTopic,
+      config.libraryTopic,
+    ]) {
       if (topic) {
         subscriptions.push({ topic });
       }
@@ -284,6 +303,7 @@ function BehaviorTreePanel({ context }: { context: PanelExtensionContext }): Rea
     config.statusTopic,
     config.stepTopic,
     config.blackboardTopic,
+    config.libraryTopic,
   ]);
 
   // Marmot: advertise the goal topic while the panel is open, so the first goal is not lost
@@ -396,6 +416,11 @@ function BehaviorTreePanel({ context }: { context: PanelExtensionContext }): Rea
               input: "string",
               value: config.blackboardTopic,
             },
+            libraryTopic: {
+              label: "Tree library topic (String, JSON)",
+              input: "string",
+              value: config.libraryTopic,
+            },
           },
         },
       },
@@ -412,6 +437,7 @@ function BehaviorTreePanel({ context }: { context: PanelExtensionContext }): Rea
     config.statusTopic,
     config.stepTopic,
     config.blackboardTopic,
+    config.libraryTopic,
   ]);
 
   // Save panel state
@@ -447,6 +473,7 @@ function BehaviorTreePanel({ context }: { context: PanelExtensionContext }): Rea
           xml={behaviorTreeXml}
           nodeStatuses={nodeStatuses}
           blackboardJson={blackboardJson}
+          libraryJson={libraryJson}
         />
       </div>
     </div>

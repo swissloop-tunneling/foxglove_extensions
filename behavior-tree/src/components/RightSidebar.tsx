@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-// Modified by Swissloop Tunneling (Project Marmot): "Trees" and "Blackboard" tabs.
+// Modified by Swissloop Tunneling (Project Marmot): "Trees", "Library" and "Blackboard" tabs.
 import {
   ChevronDown,
   ChevronRightIcon,
@@ -23,10 +23,12 @@ import {
 import React, { useState } from "react";
 
 import { BlackboardView } from "@/components/BlackboardView";
+import { LibraryView } from "@/components/LibraryView";
 import { TreesView } from "@/components/TreesView";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LibraryFile } from "@/library";
 import { EMPTY_NODE_STATUS_SNAPSHOT } from "@/liveState";
 import { NodeStatusSnapshot, TBehaviorTree } from "@/types";
 
@@ -155,11 +157,17 @@ export function RightSidebar({
   xml,
   blackboardJson,
   nodeStatuses = EMPTY_NODE_STATUS_SNAPSHOT,
+  libraryFiles = [],
+  libraryPath,
+  onSelectLibrary,
 }: {
   behaviorTree: TBehaviorTree | null;
   xml?: string;
   blackboardJson?: string;
   nodeStatuses?: NodeStatusSnapshot;
+  libraryFiles?: readonly LibraryFile[];
+  libraryPath?: string;
+  onSelectLibrary?: (path: string) => void;
 }) {
   const [isOpen, setIsOpen] = useState(true);
   const [width, setWidth] = useState(512); // Default width in pixels
@@ -302,9 +310,12 @@ export function RightSidebar({
           <div className="flex-1 overflow-hidden">
             <Tabs defaultValue="trees" className="h-full flex flex-col">
               <div className="flex items-center m-2 mb-0">
-                <TabsList className="grid flex-1 grid-cols-4">
+                <TabsList className="grid flex-1 grid-cols-5">
                   <TabsTrigger value="trees" className="text-xs">
                     Trees
+                  </TabsTrigger>
+                  <TabsTrigger value="library" className="text-xs">
+                    Library
                   </TabsTrigger>
                   <TabsTrigger value="blackboard" className="text-xs">
                     Blackboard
@@ -326,6 +337,19 @@ export function RightSidebar({
                   <Download className="h-3 w-3" />
                 </Button>
               </div>
+
+              <TabsContent value="library" className="flex-1 m-0 p-0 overflow-hidden">
+                <div className="h-full w-full overflow-auto">
+                  <LibraryView
+                    files={libraryFiles}
+                    liveTrees={behaviorTree?.trees}
+                    selectedPath={libraryPath}
+                    onSelect={(path) => {
+                      onSelectLibrary?.(path);
+                    }}
+                  />
+                </div>
+              </TabsContent>
 
               <TabsContent value="trees" className="flex-1 m-0 p-0 overflow-hidden">
                 <div className="h-full w-full overflow-auto">
