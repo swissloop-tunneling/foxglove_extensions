@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-// Modified by Swissloop Tunneling (Project Marmot): "Blackboard" tab.
+// Modified by Swissloop Tunneling (Project Marmot): "Trees" and "Blackboard" tabs.
 import {
   ChevronDown,
   ChevronRightIcon,
@@ -23,10 +23,12 @@ import {
 import React, { useState } from "react";
 
 import { BlackboardView } from "@/components/BlackboardView";
+import { TreesView } from "@/components/TreesView";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TBehaviorTree } from "@/types";
+import { EMPTY_NODE_STATUS_SNAPSHOT } from "@/liveState";
+import { NodeStatusSnapshot, TBehaviorTree } from "@/types";
 
 interface ModelCategoryProps {
   title: string;
@@ -152,10 +154,12 @@ export function RightSidebar({
   behaviorTree,
   xml,
   blackboardJson,
+  nodeStatuses = EMPTY_NODE_STATUS_SNAPSHOT,
 }: {
   behaviorTree: TBehaviorTree | null;
   xml?: string;
   blackboardJson?: string;
+  nodeStatuses?: NodeStatusSnapshot;
 }) {
   const [isOpen, setIsOpen] = useState(true);
   const [width, setWidth] = useState(512); // Default width in pixels
@@ -296,9 +300,12 @@ export function RightSidebar({
 
           {/* Content */}
           <div className="flex-1 overflow-hidden">
-            <Tabs defaultValue="blackboard" className="h-full flex flex-col">
+            <Tabs defaultValue="trees" className="h-full flex flex-col">
               <div className="flex items-center m-2 mb-0">
-                <TabsList className="grid flex-1 grid-cols-3">
+                <TabsList className="grid flex-1 grid-cols-4">
+                  <TabsTrigger value="trees" className="text-xs">
+                    Trees
+                  </TabsTrigger>
                   <TabsTrigger value="blackboard" className="text-xs">
                     Blackboard
                   </TabsTrigger>
@@ -319,6 +326,12 @@ export function RightSidebar({
                   <Download className="h-3 w-3" />
                 </Button>
               </div>
+
+              <TabsContent value="trees" className="flex-1 m-0 p-0 overflow-hidden">
+                <div className="h-full w-full overflow-auto">
+                  <TreesView trees={behaviorTree?.trees} nodeStatuses={nodeStatuses} />
+                </div>
+              </TabsContent>
 
               <TabsContent value="blackboard" className="flex-1 m-0 p-0 overflow-hidden">
                 <div className="h-full w-full overflow-auto">

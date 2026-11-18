@@ -68,11 +68,22 @@ export type TreeNode = {
   };
 };
 
+// Marmot (Swissloop Tunneling): one <BehaviorTree> block of the XML, the main tree or a sub-tree
+export type TreeInfo = {
+  id: string; // ID of the tree, e.g. "InchwormCycle"
+  fullpath: string; // _fullpath of BT::WriteTreeToXML, "" for the main tree
+  parentFullpath?: string; // tree that includes it, undefined for the main tree
+  depth: number; // 0 = main tree
+  rootId?: string; // graph id of its root node
+  uids: string[]; // _uid of its own nodes (without those of its sub-trees)
+};
+
 export type TBehaviorTree = {
   models: {
     [name: string]: Model;
   };
   root: TreeNode;
+  trees?: TreeInfo[]; // Marmot: main tree first, sub-trees in the order they are used
   metadata?: {
     version?: string;
     description?: string;

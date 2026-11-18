@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-// Modified by Swissloop Tunneling (Project Marmot): blackboard passed to the sidebar.
+// Modified by Swissloop Tunneling (Project Marmot): blackboard and node states passed to the
+// sidebar, line with the running tree above the graph.
 import { ReactElement, useMemo } from "react";
 
 import { Graph } from "./components/Graph";
 import { GraphContextProvider } from "./components/GraphContextProvider";
+import { ActiveTreeLine } from "./components/TreesView";
 import { EMPTY_NODE_STATUS_SNAPSHOT } from "./liveState";
 import { parseBehaviorTreeXML } from "./parse";
 import { NodeStatusSnapshot, TBehaviorTree } from "./types";
@@ -50,10 +52,16 @@ export function BehaviorTree({
     <GraphContextProvider>
       <div className="h-full w-full relative flex">
         <div className="flex-1 relative">
+          <ActiveTreeLine trees={behaviorTree?.trees} nodeStatuses={nodeStatuses} />
           <Graph behaviorTree={behaviorTree} nodeStatuses={nodeStatuses} />
         </div>
 
-        <RightSidebar behaviorTree={behaviorTree} xml={xml} blackboardJson={blackboardJson} />
+        <RightSidebar
+          behaviorTree={behaviorTree}
+          xml={xml}
+          blackboardJson={blackboardJson}
+          nodeStatuses={nodeStatuses}
+        />
       </div>
     </GraphContextProvider>
   );
